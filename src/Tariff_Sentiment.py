@@ -559,7 +559,21 @@ tariff_df['momentum'] = momentum_data
 
 # Add other variables
 tariff_df['after_hours'] = (tariff_df['conference_date'].dt.hour >= 16).astype(int)  # After-hours indicator
-tariff_df['sector'] = tariff_df['ticker'].str[:2]  # Simple sector proxy
+
+def get_sector_from_yf(ticker):
+    """Get sector information from Yahoo Finance"""
+    try:
+        ticker_obj = yf.Ticker(ticker)
+        info = ticker_obj.info
+        return info.get('sector', 'Unknown')
+    except Exception as e:
+        print(f"Failed to get sector for {ticker}: {e}")
+        return 'Unknown'
+
+print("Fetching sector information from Yahoo Finance...")
+tariff_df['sector'] = tariff_df['ticker'].apply(get_sector_from_yf)
+print("Sector information added.")
+
 tariff_df['quarter'] = tariff_df['fqtr']
 
 # Filter to only include Q1'24 to Q3'25 data (remove future predictions)

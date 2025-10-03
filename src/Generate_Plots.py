@@ -155,64 +155,8 @@ print("\n" + "="*80)
 print("8.2) SECTOR HEATMAP")
 print("="*80)
 
-# Comprehensive sector mapping
-sector_mapping = {
-    # Technology
-    'AAPL': 'Technology', 'MSFT': 'Technology', 'GOOGL': 'Technology', 'GOOG': 'Technology',
-    'NVDA': 'Technology', 'META': 'Technology', 'AVGO': 'Technology', 'ORCL': 'Technology',
-    'CRM': 'Technology', 'ADBE': 'Technology', 'AMD': 'Technology', 'INTC': 'Technology',
-    'CSCO': 'Technology', 'IBM': 'Technology', 'QCOM': 'Technology', 'TXN': 'Technology',
-    'NOW': 'Technology', 'INTU': 'Technology', 'AMAT': 'Technology', 'ADI': 'Technology',
-    
-    # Financials
-    'JPM': 'Financials', 'BAC': 'Financials', 'WFC': 'Financials', 'GS': 'Financials',
-    'MS': 'Financials', 'C': 'Financials', 'BLK': 'Financials', 'SCHW': 'Financials',
-    'V': 'Financials', 'MA': 'Financials', 'AXP': 'Financials', 'SPGI': 'Financials',
-    'BK': 'Financials', 'USB': 'Financials', 'PNC': 'Financials', 'TFC': 'Financials',
-    
-    # Healthcare
-    'JNJ': 'Healthcare', 'UNH': 'Healthcare', 'PFE': 'Healthcare', 'ABBV': 'Healthcare',
-    'LLY': 'Healthcare', 'TMO': 'Healthcare', 'MRK': 'Healthcare', 'ABT': 'Healthcare',
-    'DHR': 'Healthcare', 'AMGN': 'Healthcare', 'CVS': 'Healthcare', 'GILD': 'Healthcare',
-    'BMY': 'Healthcare', 'ELV': 'Healthcare', 'CI': 'Healthcare', 'ISRG': 'Healthcare',
-    
-    # Energy
-    'XOM': 'Energy', 'CVX': 'Energy', 'COP': 'Energy', 'SLB': 'Energy',
-    'EOG': 'Energy', 'PXD': 'Energy', 'MPC': 'Energy', 'PSX': 'Energy',
-    
-    # Consumer Staples
-    'WMT': 'Consumer Staples', 'PG': 'Consumer Staples', 'KO': 'Consumer Staples',
-    'PEP': 'Consumer Staples', 'COST': 'Consumer Staples', 'PM': 'Consumer Staples',
-    'MO': 'Consumer Staples', 'CL': 'Consumer Staples', 'MDLZ': 'Consumer Staples',
-    
-    # Consumer Discretionary
-    'AMZN': 'Consumer Discretionary', 'TSLA': 'Consumer Discretionary', 
-    'HD': 'Consumer Discretionary', 'MCD': 'Consumer Discretionary',
-    'NKE': 'Consumer Discretionary', 'SBUX': 'Consumer Discretionary',
-    'LOW': 'Consumer Discretionary', 'TGT': 'Consumer Discretionary',
-    
-    # Industrials
-    'BA': 'Industrials', 'CAT': 'Industrials', 'GE': 'Industrials', 'HON': 'Industrials',
-    'UPS': 'Industrials', 'RTX': 'Industrials', 'LMT': 'Industrials', 'DE': 'Industrials',
-    'MMM': 'Industrials', 'UNP': 'Industrials', 'FDX': 'Industrials',
-    
-    # Communication Services
-    'NFLX': 'Communication', 'DIS': 'Communication', 'CMCSA': 'Communication',
-    'T': 'Communication', 'VZ': 'Communication', 'TMUS': 'Communication',
-    
-    # Materials
-    'LIN': 'Materials', 'APD': 'Materials', 'SHW': 'Materials', 'FCX': 'Materials',
-    
-    # Real Estate
-    'AMT': 'Real Estate', 'PLD': 'Real Estate', 'CCI': 'Real Estate',
-    
-    # Utilities
-    'NEE': 'Utilities', 'DUK': 'Utilities', 'SO': 'Utilities', 'D': 'Utilities',
-}
-
-# Apply sector mapping
-tariff_df_with_tariffs['sector_name'] = tariff_df_with_tariffs['ticker'].map(sector_mapping)
-tariff_df_with_tariffs['sector_name'] = tariff_df_with_tariffs['sector_name'].fillna('Other')
+# Apply sector from data (obtained via yfinance)
+tariff_df_with_tariffs['sector_name'] = tariff_df_with_tariffs['sector'].fillna('Other')
 
 # Sector summary statistics
 sector_summary = tariff_df_with_tariffs.groupby('sector_name').agg({
