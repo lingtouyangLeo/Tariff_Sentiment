@@ -617,9 +617,13 @@ def run_fe_firm_cluster(df: pd.DataFrame):
     """
     work = df[['CAR','TariffSent_mean','eps_surprise','TariffMentions','size','momentum','after_hours','sector','ticker','quarter']].dropna().copy()
 
+    # Ensure sector and quarter are strings and handle missing values
+    work['sector'] = work['sector'].fillna('Unknown').astype(str)
+    work['quarter'] = work['quarter'].fillna('Unknown').astype(str)
+    
     # Build FE via dummies (avoid dummy trap: drop_first=True)
-    sector_d = pd.get_dummies(work['sector'].astype(str), prefix='sector', drop_first=True)
-    quarter_d = pd.get_dummies(work['quarter'].astype(str), prefix='quarter', drop_first=True)
+    sector_d = pd.get_dummies(work['sector'], prefix='sector', drop_first=True, dtype=float)
+    quarter_d = pd.get_dummies(work['quarter'], prefix='quarter', drop_first=True, dtype=float)
 
     X = pd.concat(
         [work[['TariffSent_mean','eps_surprise','TariffMentions','size','momentum','after_hours']], sector_d, quarter_d],

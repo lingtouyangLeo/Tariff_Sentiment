@@ -55,8 +55,8 @@ PLOTS_DIR.mkdir(parents=True, exist_ok=True)
 
 print(f"\nData Summary:")
 print(f"- Total events: {len(tariff_df)}")
-print(f"- Events with tariff mentions: {(tariff_df['TariffMentions'] > 0).sum()}")
-print(f"- Date range: {tariff_df['conference_date'].min()} to {tariff_df['conference_date'].max()}")
+print(f"- Events with tariff mentions: {(tariff_df['TariffMentions_iq'] > 0).sum()}")
+print(f"- Date range: {tariff_df['call_time_iq'].min()} to {tariff_df['call_time_iq'].max()}")
 
 # Filter to only include Q1'24 to Q3'25 data (remove future predictions)
 valid_quarters = ['2024_Q1', '2024_Q2', '2024_Q3', '2024_Q4', '2025_Q1', '2025_Q2', '2025_Q3']
@@ -64,7 +64,7 @@ tariff_df = tariff_df[tariff_df['quarter'].isin(valid_quarters)].copy()
 print(f"- After quarter filtering: {len(tariff_df)} events")
 
 # Filter to events with tariff mentions
-tariff_df_with_tariffs = tariff_df[tariff_df['TariffMentions'] > 0].copy()
+tariff_df_with_tariffs = tariff_df[tariff_df['TariffMentions_iq'] > 0].copy()
 print(f"- Analyzing {len(tariff_df_with_tariffs)} events with tariff content")
 
 # Use the existing 'quarter' column (already formatted as 'YYYY_QX')
@@ -80,8 +80,8 @@ print("="*80)
 
 # Calculate quarterly averages
 quarterly_sentiment = tariff_df_with_tariffs.groupby('year_quarter').agg({
-    'TariffSent_mean': ['mean', 'std', 'count'],
-    'TariffMentions': 'mean',
+    'TariffSent_mean_call_iq': ['mean', 'std', 'count'],
+    'TariffMentions_iq': 'mean',
     'TariffSent_shareNeg': 'mean'
 }).round(4)
 
@@ -160,8 +160,8 @@ tariff_df_with_tariffs['sector_name'] = tariff_df_with_tariffs['sector'].fillna(
 
 # Sector summary statistics
 sector_summary = tariff_df_with_tariffs.groupby('sector_name').agg({
-    'TariffSent_mean': ['mean', 'std', 'count'],
-    'TariffMentions': 'mean',
+    'TariffSent_mean_call_iq': ['mean', 'std', 'count'],
+    'TariffMentions_iq': 'mean',
     'TariffSent_shareNeg': 'mean'
 }).round(4)
 
@@ -176,7 +176,7 @@ try:
     pivot_sentiment = tariff_df_with_tariffs.pivot_table(
         index='sector_name', 
         columns='year_quarter', 
-        values='TariffSent_mean', 
+        values='TariffSent_mean_call_iq', 
         aggfunc='mean'
     )
     
@@ -214,8 +214,8 @@ print("8.3) WORD SHIFTS ANALYSIS")
 print("="*80)
 
 # Classify events as negative or positive based on median sentiment
-median_sentiment = tariff_df_with_tariffs['TariffSent_mean'].median()
-tariff_df_with_tariffs['sentiment_category'] = tariff_df_with_tariffs['TariffSent_mean'].apply(
+median_sentiment = tariff_df_with_tariffs['TariffSent_mean_call_iq'].median()
+tariff_df_with_tariffs['sentiment_category'] = tariff_df_with_tariffs['TariffSent_mean_call_iq'].apply(
     lambda x: 'Positive' if x > median_sentiment else 'Negative'
 )
 
@@ -326,18 +326,18 @@ print("="*80)
 
 # Statistical summary
 print("\nTariff Sentiment Statistics:")
-print(tariff_df_with_tariffs['TariffSent_mean'].describe().to_string())
+print(tariff_df_with_tariffs['TariffSent_mean_call_iq'].describe().to_string())
 
 # Create 4-panel visualization
 fig, axes = plt.subplots(2, 2, figsize=(16, 12))
 
 # Panel 1: Histogram of sentiment
-axes[0, 0].hist(tariff_df_with_tariffs['TariffSent_mean'], bins=40, 
+axes[0, 0].hist(tariff_df_with_tariffs['TariffSent_mean_call_iq'], bins=40, 
                 color='steelblue', edgecolor='black', alpha=0.7)
 axes[0, 0].axvline(x=0, color='red', linestyle='--', linewidth=2, label='Neutral', alpha=0.7)
-axes[0, 0].axvline(x=tariff_df_with_tariffs['TariffSent_mean'].median(), 
+axes[0, 0].axvline(x=tariff_df_with_tariffs['TariffSent_mean_call_iq'].median(), 
                    color='green', linestyle='--', linewidth=2, label='Median', alpha=0.7)
-axes[0, 0].axvline(x=tariff_df_with_tariffs['TariffSent_mean'].mean(), 
+axes[0, 0].axvline(x=tariff_df_with_tariffs['TariffSent_mean_call_iq'].mean(), 
                    color='orange', linestyle='--', linewidth=2, label='Mean', alpha=0.7)
 axes[0, 0].set_xlabel('Tariff Sentiment', fontsize=12, fontweight='bold')
 axes[0, 0].set_ylabel('Frequency', fontsize=12, fontweight='bold')
@@ -346,9 +346,9 @@ axes[0, 0].legend(fontsize=10)
 axes[0, 0].grid(alpha=0.3, axis='y')
 
 # Panel 2: Sentiment vs Mentions scatter
-axes[0, 1].scatter(tariff_df_with_tariffs['TariffMentions'], 
-                   tariff_df_with_tariffs['TariffSent_mean'],
-                   alpha=0.4, s=50, c=tariff_df_with_tariffs['TariffSent_mean'],
+axes[0, 1].scatter(tariff_df_with_tariffs['TariffMentions_iq'], 
+                   tariff_df_with_tariffs['TariffSent_mean_call_iq'],
+                   alpha=0.4, s=50, c=tariff_df_with_tariffs['TariffSent_mean_call_iq'],
                    cmap='RdYlGn', edgecolors='black', linewidth=0.5)
 axes[0, 1].axhline(y=0, color='red', linestyle='--', alpha=0.5, linewidth=2)
 axes[0, 1].set_xlabel('Number of Tariff Mentions', fontsize=12, fontweight='bold')
@@ -357,15 +357,15 @@ axes[0, 1].set_title('Sentiment vs Mention Frequency', fontsize=13, fontweight='
 axes[0, 1].grid(alpha=0.3)
 
 # Add correlation
-corr = tariff_df_with_tariffs[['TariffMentions', 'TariffSent_mean']].corr().iloc[0, 1]
+corr = tariff_df_with_tariffs[['TariffMentions_iq', 'TariffSent_mean_call_iq']].corr().iloc[0, 1]
 axes[0, 1].text(0.05, 0.95, f'Correlation: {corr:.3f}', 
                 transform=axes[0, 1].transAxes, fontsize=11,
                 verticalalignment='top', bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
 
 # Panel 3: Box plot by category
 sentiment_by_cat = [
-    tariff_df_with_tariffs[tariff_df_with_tariffs['sentiment_category'] == 'Negative']['TariffSent_mean'],
-    tariff_df_with_tariffs[tariff_df_with_tariffs['sentiment_category'] == 'Positive']['TariffSent_mean']
+    tariff_df_with_tariffs[tariff_df_with_tariffs['sentiment_category'] == 'Negative']['TariffSent_mean_call_iq'],
+    tariff_df_with_tariffs[tariff_df_with_tariffs['sentiment_category'] == 'Positive']['TariffSent_mean_call_iq']
 ]
 bp = axes[1, 0].boxplot(sentiment_by_cat, labels=['Negative', 'Positive'], 
                         patch_artist=True, widths=0.6)
@@ -379,7 +379,7 @@ axes[1, 0].grid(alpha=0.3, axis='y')
 
 # Panel 4: Quarterly trend with error bars
 quarterly_with_std = tariff_df_with_tariffs.groupby('year_quarter').agg({
-    'TariffSent_mean': ['mean', 'std', 'count']
+    'TariffSent_mean_call_iq': ['mean', 'std', 'count']
 })
 quarterly_with_std.columns = ['mean', 'std', 'count']
 quarterly_with_std = quarterly_with_std.sort_index()
@@ -417,11 +417,11 @@ print(f"  3. 8.3_word_shifts.png")
 print(f"  4. 8.4_sentiment_analysis.png")
 
 print(f"\n📊 Key Findings:")
-print(f"  - Overall average sentiment: {tariff_df_with_tariffs['TariffSent_mean'].mean():.4f}")
-print(f"  - Sentiment std deviation: {tariff_df_with_tariffs['TariffSent_mean'].std():.4f}")
+print(f"  - Overall average sentiment: {tariff_df_with_tariffs['TariffSent_mean_call_iq'].mean():.4f}")
+print(f"  - Sentiment std deviation: {tariff_df_with_tariffs['TariffSent_mean_call_iq'].std():.4f}")
 print(f"  - Most negative sector: {sector_summary.iloc[-1].name} ({sector_summary.iloc[-1]['Avg_Sentiment']:.4f})")
 print(f"  - Most positive sector: {sector_summary.iloc[0].name} ({sector_summary.iloc[0]['Avg_Sentiment']:.4f})")
-print(f"  - Average mentions per event: {tariff_df_with_tariffs['TariffMentions'].mean():.2f}")
+print(f"  - Average mentions per event: {tariff_df_with_tariffs['TariffMentions_iq'].mean():.2f}")
 print(f"  - Quarters analyzed: {len(quarterly_sentiment)}")
 
 print("\n" + "="*80)

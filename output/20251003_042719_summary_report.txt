@@ -1,0 +1,98 @@
+================================================================================
+TARIFF SENTIMENT ANALYSIS - SUMMARY REPORT
+================================================================================
+
+1. DESCRIPTIVE STATISTICS
+--------------------------------------------------------------------------------
+
+Tariff Mention Rates & Sentiment by Quarter:
+        TariffMentions_iq                TariffSent_mean_call_iq        
+                    count     mean   sum                    mean     std
+quarter                                                                 
+2024_Q1               491   3.0896  1517                  0.0817  0.4148
+2024_Q2               492   3.2073  1578                  0.0709  0.4177
+2024_Q3               491   3.4358  1687                  0.1093  0.4273
+2024_Q4               490   4.6837  2295                  0.2010  0.4083
+2025_Q1               489  11.4294  5589                  0.3031  0.3156
+2025_Q2               492   7.7378  3807                  0.1639  0.3682
+2025_Q3               102   8.6667   884                  0.2639  0.3335
+
+Tariff Mention Rates & Sentiment by Sector:
+                       TariffMentions_iq               TariffSent_mean_call_iq        
+                                   count    mean   sum                    mean     std
+sector                                                                                
+Basic Materials                      121  8.5455  1034                  0.2406  0.3177
+Communication Services               131  1.8244   239                  0.0613  0.4215
+Consumer Cyclical                    335  6.7582  2264                  0.1740  0.3980
+Consumer Defensive                   225  6.8400  1539                  0.1473  0.3641
+Energy                               129  3.9225   506                  0.1136  0.4475
+Financial Services                   408  3.3995  1387                  0.1096  0.4240
+Healthcare                           369  6.3902  2358                  0.1725  0.3803
+Industrials                          437  9.4508  4130                  0.1372  0.3653
+Real Estate                          182  3.6264   660                  0.2883  0.3739
+Technology                           522  4.6360  2420                  0.1593  0.4137
+Unknown                                7  9.1429    64                  0.0181  0.2648
+Utilities                            181  4.1768   756                  0.1969  0.4557
+
+
+2. MAIN REGRESSION TABLE
+--------------------------------------------------------------------------------
+See: 20251003_042719_regression_results.txt
+See: 20251003_042719_regression_coefs.csv
+Main specification: CAR on TariffSent + Surprise with FE and clustered SEs
+
+
+3. ROBUSTNESS SUITE
+--------------------------------------------------------------------------------
+Multiple specifications provided:
+  - Model 1: OLS + HC3 (baseline)
+  - Model 2: OLS + Sector & Quarter FE + Firm-clustered SEs
+  - Model 3: PanelOLS + Entity & Time FE + Two-way clustered SEs
+
+Future robustness checks could include:
+  - Exposure interaction (firm tariff exposure × tariff tone)
+  - Alternative windows and tariff tone definitions
+  - Placebo topics (non-tariff sentiment)
+
+
+4. INTERPRETABLE SNIPPETS
+--------------------------------------------------------------------------------
+Top positive tariff sentiment examples:
+
+BLK (2024_Q3): Sentiment = 0.929
+  Example: "BlackRock assumes no duty and does not undertake to update any forward looking statements...."
+
+BLK (2024_Q4): Sentiment = 0.928
+  Example: "BlackRock assumes no duty and does not undertake to update any forward-looking statements...."
+
+BLK (2024_Q2): Sentiment = 0.928
+  Example: "BlackRock assumes no duty and does not undertake to update any forward-looking statements...."
+
+BLK (2024_Q1): Sentiment = 0.928
+  Example: "BlackRock assumes no duty and does not undertake to update any forward-looking statements...."
+
+FFIV (2025_Q1): Sentiment = 0.928
+  Example: "Please note that F5 has no duty to update any information presented in this call...."
+
+
+Top negative tariff sentiment examples:
+
+CHTR (2024_Q4): Sentiment = -0.946
+  Example: "Other costs of revenue increased by 16.2%, primarily driven by higher mobile device sales and mobile service direct costs, as well as higher advertising sales expense related to higher political reven..."
+
+META (2024_Q2): Sentiment = -0.940
+  Example: "In terms of the specific line items, Cost of revenue increased 23%, driven primarily by higher infrastructure and Reality Labs inventory costs...."
+
+META (2024_Q3): Sentiment = -0.940
+  Example: "In terms of the specific line items, cost of revenue increased 19%, driven primarily by higher infrastructure costs...."
+
+MTCH (2024_Q3): Sentiment = -0.939
+  Example: "Selling and marketing costs increased $3 million, or 2% year-over-year, primarily due to increased spend at Tinder, Hinge, and certain emerging brands...."
+
+OKE (2024_Q4): Sentiment = -0.937
+  Example: "The refined products and crude segment contributed its first full year of earnings, benefiting from higher average refined product tariff rates, blending and marketing opportunities, as well as higher..."
+
+
+================================================================================
+END OF SUMMARY REPORT
+================================================================================
