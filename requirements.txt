@@ -1,40 +1,49 @@
-# NLP HW1 Environment Requirements
-# For Tariff Sentiment Analysis Project
+# NLP Tariff Sentiment Analysis - Requirements
+# For Three-Step Analysis Pipeline (Tariff_Sentiment.py, Generate_Plots.py, Regressions.py)
 
 # ⚠️ IMPORTANT: Python Version Requirements
 # - macOS: Python 3.11+ REQUIRED for best PyTorch compatibility
 # - Windows/Linux: Python 3.10+ acceptable, 3.11+ recommended
-# - Note: When PyTorch 2.6+ becomes available, upgrade immediately for security patches
+# - GPU Support: NVIDIA GPU with CUDA highly recommended (faster FinBERT processing)
 
-# Core data science libraries
-pandas==2.3.1
-numpy==1.26.4
-scikit-learn==1.7.1
-scipy==1.15.3
+# Core data science libraries (Used in all scripts)
+pandas==2.3.1              # Data manipulation and analysis
+numpy==1.26.4              # Numerical computing
+scikit-learn==1.7.1        # Machine learning utilities
+scipy==1.15.3              # Scientific computing
 
-# Deep Learning and NLP
-torch>=2.2.0  # Use latest available version. Upgrade to 2.6+ when released for security
-transformers==4.56.2
-sentence-transformers==5.1.1
-spacy==3.8.7
+# Deep Learning and NLP (Used in Tariff_Sentiment.py)
+torch>=2.2.0               # PyTorch for neural networks (with CUDA support)
+transformers==4.56.2       # FinBERT sentiment analysis model
+sentence-transformers==5.1.1  # Semantic similarity for tariff sentence extraction
+spacy==3.8.7               # Sentence splitting and NLP preprocessing
 
-# Statistics and Regression
-statsmodels==0.14.5
+# Statistics and Econometrics (Used in Tariff_Sentiment.py and Regressions.py)
+statsmodels==0.14.5        # OLS regression with robust standard errors
+linearmodels>=5.0          # PanelOLS with two-way fixed effects and clustered SEs
 
-# Finance data
-yfinance>=0.2.66
+# Finance data (Used in Tariff_Sentiment.py)
+yfinance>=0.2.66           # Yahoo Finance API for EPS data and stock prices
 
-# Visualization
-matplotlib>=3.10.0
-seaborn>=0.13.0
+# Visualization (Used in Generate_Plots.py)
+matplotlib>=3.10.0         # Plotting library
+seaborn>=0.13.0            # Statistical visualization
 
-# Additional dependencies
-huggingface-hub==0.35.2
-tokenizers==0.22.1
-pyyaml==6.0.3
-tqdm==4.67.1
-requests==2.32.5
-regex==2025.9.18
+# Utilities (Used across scripts)
+tqdm==4.67.1               # Progress bars for long-running operations
+huggingface-hub==0.35.2    # Hugging Face model hub integration
+tokenizers==0.22.1         # Fast tokenizers for transformers
+pyyaml==6.0.3              # YAML parsing
+requests==2.32.5           # HTTP library
+regex==2025.9.18           # Regular expressions
 
-# spaCy language model
-# Additional installation required: python -m spacy download en_core_web_sm
+# spaCy language model (Required for sentence splitting)
+# Installation: python -m spacy download en_core_web_sm
+# This must be run AFTER installing spacy
+
+# Installation Instructions:
+# 1. Create conda environment: conda create -n nlp python=3.11 -y
+# 2. Activate environment: conda activate nlp
+# 3. Install packages: pip install -r requirements.txt
+# 4. Download spaCy model: python -m spacy download en_core_web_sm
+# 5. Verify GPU: python -c "import torch; print(torch.cuda.is_available())"
