@@ -10,6 +10,7 @@ import spacy
 from pathlib import Path
 import yfinance as yf
 from tqdm import tqdm
+from linearmodels.panel import PanelOLS
 
 # Set up directory paths
 BASE_DIR = Path(__file__).parent.parent  # Project root directory
@@ -198,12 +199,52 @@ def get_yf_eps_and_price_data(ticker_symbol, earnings_date):
         # Simplified error handling - no retries, no delays
         return np.nan, np.nan, np.nan, np.nan
 
-# 5) Load transcripts and extract EPS data in one step
-print("Loading transcripts based on events data...")
-transcripts_data = []
+# 5) OPTIMIZED: Pre-fetch all unique (ticker, date) EPS data to avoid redundant API calls
+print("Step 1: Pre-fetching EPS data for all unique (ticker, date) combinations...")
+import time
 
+# Extract unique (ticker, date) combinations that have transcripts
 transcript_dir = DATA_DIR / 'sp500_transcripts/sp500_transcripts'
-# Only process events that have transcripts
+unique_ticker_dates = []
+for idx, row in events_df.iterrows():
+    ticker = row['symbol']
+    year = row['year']
+    quarter = row['quarter']
+    transcript_file = transcript_dir / f"{ticker}_{year}_Q{quarter}.txt"
+    
+    if transcript_file.exists():
+        earnings_date = pd.to_datetime(row['date'])
+        unique_ticker_dates.append((ticker, earnings_date, year, quarter))
+
+# Remove duplicates
+unique_ticker_dates = list(set(unique_ticker_dates))
+print(f"Found {len(unique_ticker_dates)} unique (ticker, date) combinations to fetch")
+
+# Batch fetch with rate limiting
+eps_cache = {}  # Key: (ticker, date_str), Value: (eps_actual, eps_consensus, price_pre, eps_surprise)
+
+for ticker, date, year, quarter in tqdm(unique_ticker_dates, desc="Fetching EPS data"):
+    time.sleep(0.15)  # Rate limiting: ~6-7 requests per second
+    
+    date_str = date.strftime('%Y-%m-%d')
+    cache_key = (ticker, date_str)
+    
+    # Fetch from Yahoo Finance
+    eps_actual, eps_consensus, price_pre, eps_surprise = get_yf_eps_and_price_data(ticker, date)
+    
+    # If Yahoo Finance failed, try fallback
+    if pd.isna(eps_actual):
+        eps_actual, eps_consensus_fallback = extract_eps_from_summary(ticker, year, quarter)
+        if not pd.isna(eps_actual) and pd.isna(price_pre):
+            eps_surprise = np.nan
+    
+    eps_cache[cache_key] = (eps_actual, eps_consensus, price_pre, eps_surprise)
+
+print(f"Cached EPS data for {len(eps_cache)} ticker-date combinations")
+
+# 6) Load transcripts and use cached EPS data
+print("\nStep 2: Loading transcripts from local files...")
+transcripts_data = []
 processed_count = 0
 
 # Use tqdm for progress visualization
@@ -222,30 +263,27 @@ for idx, row in tqdm(events_df.iterrows(), total=len(events_df), desc="Loading t
             with open(transcript_file, 'r', encoding='utf-8') as f:
                 text = f.read()
             
-            # Use earnings date from events CSV for all calculations
-            earnings_date = pd.to_datetime(row['date'])  # This is the actual earnings announcement date
+            # Use earnings date from events CSV
+            earnings_date = pd.to_datetime(row['date'])
+            date_str = earnings_date.strftime('%Y-%m-%d')
+            cache_key = (ticker, date_str)
             
-            # Get ALL data from Yahoo Finance: EPS actual, EPS consensus, and price data
-            eps_actual, eps_consensus, price_pre, eps_surprise = get_yf_eps_and_price_data(ticker, earnings_date)
-            
-            # If Yahoo Finance failed completely, try fallback EPS from summary files
-            if pd.isna(eps_actual):
-                eps_actual, eps_consensus_fallback = extract_eps_from_summary(ticker, year, quarter)
-                # If we got EPS from summary but no price, can't calculate surprise
-                if not pd.isna(eps_actual) and pd.isna(price_pre):
-                    eps_surprise = np.nan  # Can't calculate without price
+            # Retrieve from cache (fast, no API calls!)
+            eps_actual, eps_consensus, price_pre, eps_surprise = eps_cache.get(
+                cache_key, (np.nan, np.nan, np.nan, np.nan)
+            )
             
             transcripts_data.append({
                 'ticker': ticker,
                 'year': year,
                 'quarter': quarter,
                 'fqtr': f'{year}_Q{quarter}',
-                'ann_date': earnings_date,  # Use earnings_date from events CSV
+                'ann_date': earnings_date,
                 'conference_date': pd.to_datetime(row['conference_date']),
                 'eps_actual': eps_actual,
                 'eps_consensus': eps_consensus,
                 'price_pre': price_pre,
-                'eps_surprise': eps_surprise,  # Simple EPS Surprise formula
+                'eps_surprise': eps_surprise,
                 'text': text
             })
             
@@ -491,11 +529,12 @@ def calculate_car_for_event(ticker, ann_date, car_window=(0,1)):
 
 # Calculate CARs for all events using real dates
 cars = []
-for idx, row in tariff_df.iterrows():
+for idx, row in tqdm(tariff_df.iterrows(), total=len(tariff_df), desc="Calculating CARs"):
     car = calculate_car_for_event(row['ticker'], row['ann_date'])
     cars.append(car)
 
 tariff_df['CAR'] = cars
+print(f"Calculated CAR for {len([c for c in cars if not pd.isna(c)])}/{len(cars)} events")
 
 # 11) Use Simple EPS Surprise from Yahoo Finance
 print("Using Simple EPS Surprise from Yahoo Finance...")
@@ -650,9 +689,21 @@ def run_panel_twfe_twcluster(df: pd.DataFrame):
 
     work = df[['CAR','TariffSent_mean','eps_surprise','TariffMentions','size','momentum','after_hours','ticker','quarter']].dropna().copy()
 
-    # Set a MultiIndex (entity, time)
-    work['quarter'] = work['quarter'].apply(sanitize_quarter)
-    work = work.set_index(['ticker','quarter']).sort_index()
+    # Convert quarter to numeric for PanelOLS (e.g., 2024_Q1 -> 20241)
+    def quarter_to_numeric(q):
+        """Convert '2024_Q1' to 20241 (numeric)"""
+        if pd.isna(q):
+            return np.nan
+        q = str(q)
+        parts = q.split('_Q')
+        if len(parts) == 2:
+            return int(parts[0]) * 10 + int(parts[1])
+        return np.nan
+    
+    work['quarter_numeric'] = work['quarter'].apply(quarter_to_numeric)
+    
+    # Set a MultiIndex (entity, time) with numeric time
+    work = work.set_index(['ticker','quarter_numeric']).sort_index()
 
     y = work['CAR']
     X = work[['TariffSent_mean','eps_surprise','TariffMentions','size','momentum','after_hours']]
@@ -712,290 +763,46 @@ def save_coef_table(models: dict, out_csv: Path):
     if rows:
         pd.DataFrame(rows).to_csv(out_csv, index=False)
 
-# 13) Advanced regression analysis (requirement 7)
+# 13) Save ALL processed data to output folder
 print("\n" + "="*80)
-print("REQUIREMENT 7: ECONOMETRIC SPECIFICATION")
+print("SAVING PROCESSED DATA TO OUTPUT FOLDER")
 print("="*80)
-print("Running event-study regressions matching PDF specification...")
-print("Formula: CAR[t,t+1] = α + β₁·TariffSent + β₂·Surprise + β₃·TariffMentions + γ'X + δ_sector + δ_quarter + ε")
-print("- Fixed Effects: sector (GICS) and calendar quarter FE")
-print("- Standard Errors: clustered by firm and quarter (two-way)")
-print("="*80)
-
-# Prepare regression data
-reg_data = tariff_df[['CAR', 'TariffSent_mean', 'eps_surprise', 'TariffMentions', 'size', 'momentum', 'after_hours', 'sector', 'ticker', 'quarter']].dropna()
-
-if len(reg_data) > 20:  # Need sufficient observations
-    # Run models
-    models = {}
-
-    print("\n[1/3] Running baseline OLS with HC3 robust SEs...")
-    m1 = run_ols_hc3(reg_data)
-    models['Model 1: OLS + HC3 (no FE)'] = m1
-
-    print("[2/3] Running OLS with Sector & Quarter FE + Firm-clustered SEs...")
-    m2 = run_fe_firm_cluster(reg_data)
-    models['Model 2: OLS + Sector & Quarter FE + Firm-clustered SEs'] = m2
-
-    print("[3/3] Running PanelOLS with Entity & Time FE + Two-way clustered SEs...")
-    m3, warn = run_panel_twfe_twcluster(reg_data)
-    if m3 is not None:
-        models['Model 3: PanelOLS + Entity & Time FE + Two-way clustered SEs'] = m3
-    else:
-        print(f"[WARN] {warn}")
-
-    # Save outputs
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    txt_path = OUTPUT_DIR / f"{timestamp}_regression_results.txt"
-    save_results_txt(models, txt_path)
-
-    coef_csv = OUTPUT_DIR / f"{timestamp}_regression_coefs.csv"
-    save_coef_table(models, coef_csv)
-
-    print("\n" + "="*80)
-    print("REQUIREMENT 7: ECONOMETRIC REGRESSIONS COMPLETE")
-    print("="*80)
-    print(f"✓ Saved text summary: {txt_path}")
-    print(f"✓ Saved coefficients: {coef_csv}")
-    print(f"✓ N observations: {len(reg_data)}")
-    
-    # Print key results from main model
-    if 'Model 2: OLS + Sector & Quarter FE + Firm-clustered SEs' in models:
-        m = models['Model 2: OLS + Sector & Quarter FE + Firm-clustered SEs']
-        print(f"\nKey Results (Model 2 - Main Specification):")
-        print(f"  β₁ (TariffSent_mean): {m.params.get('TariffSent_mean', np.nan):.6f}")
-        print(f"  β₂ (eps_surprise):     {m.params.get('eps_surprise', np.nan):.6f}")
-        print(f"  β₃ (TariffMentions):   {m.params.get('TariffMentions', np.nan):.6f}")
-        print(f"  R-squared:             {m.rsquared:.4f}")
-    
-    if not LINEARMODELS_AVAILABLE:
-        print("\nNote: 'linearmodels' not installed; skipped Model 3.")
-        print("Install with:  pip install linearmodels")
-    print("="*80)
-        
-else:
-    print(f"Insufficient data for regression. Only {len(reg_data)} complete observations.")
-
-print("\nEnhanced Analysis Complete!")
-print(f"Summary statistics:")
-print(f"- Total transcripts processed: {len(transcripts_df)}")
-print(f"- Transcripts with tariff mentions: {(tariff_df['TariffMentions'] > 0).sum()}")
-print(f"- Events with valid EPS: {(~tariff_df['eps_actual'].isna()).sum()}")
-print(f"- Events with valid EPS surprise: {(~tariff_df['eps_surprise'].isna()).sum()}")
-print(f"- Average tariff sentiment: {tariff_df['TariffSent_mean'].mean():.3f}")
-print(f"- Average CAR: {tariff_df['CAR'].mean():.4f}")
-print(f"- Average EPS surprise: {tariff_df['eps_surprise'].mean():.6f}")
-
-# Document transcript coverage (Requirement 11)
-print("\n" + "="*80)
-print("REQUIREMENT 11: TRANSCRIPT COVERAGE DOCUMENTATION")
-print("="*80)
-total_possible = len(events_df)
-total_processed = len(transcripts_df)
-coverage_rate = (total_processed / total_possible * 100) if total_possible > 0 else 0
-print(f"Transcript coverage rate: {total_processed}/{total_possible} ({coverage_rate:.1f}%)")
-print(f"- Events with transcripts: {total_processed}")
-print(f"- Events in dataset: {total_possible}")
-print(f"- Missing transcripts: {total_possible - total_processed}")
-print("\nNote: Coverage rate documents which earnings calls have available transcripts.")
-print("Selection bias handled by documenting coverage and controlling for firm/time FE.")
-print("="*80)
-
-# ============================================================================
-# REQUIREMENT 9: Prepare Repro-ready Variable Dictionary
-# ============================================================================
-print("\n" + "="*80)
-print("REQUIREMENT 9: PREPARING REPRO-READY VARIABLE DICTIONARY")
-print("="*80)
-
-# Remove outliers: cap extreme CAR and surprise values (Requirement 11)
-print("Applying outlier treatment (cap extreme CAR and surprise values)...")
-car_p1 = tariff_df['CAR'].quantile(0.01)
-car_p99 = tariff_df['CAR'].quantile(0.99)
-tariff_df['CAR'] = tariff_df['CAR'].clip(lower=car_p1, upper=car_p99)
-
-eps_p1 = tariff_df['eps_surprise'].quantile(0.01)
-eps_p99 = tariff_df['eps_surprise'].quantile(0.99)
-tariff_df['eps_surprise'] = tariff_df['eps_surprise'].clip(lower=eps_p1, upper=eps_p99)
-print(f"✓ Capped CAR at [{car_p1:.4f}, {car_p99:.4f}]")
-print(f"✓ Capped EPS surprise at [{eps_p1:.6f}, {eps_p99:.6f}]")
-
-# Rename variables to match requirement 9 specification
-tariff_df_output = tariff_df.copy()
-
-# Rename time variables
-tariff_df_output = tariff_df_output.rename(columns={
-    'ann_date': 'ann_time_iq',  # timestamp of press release
-    'conference_date': 'call_time_iq'  # call start timestamp
-})
-
-# Rename core variables with proper naming convention
-tariff_df_output = tariff_df_output.rename(columns={
-    'TariffSent_mean': 'TariffSent_mean_call_iq',  # TariffSent_mean_call_{i,q}
-    'TariffMentions': 'TariffMentions_iq',  # TariffMentions_{i,q}
-    'ForwardTone': 'TariffSent_fwd_iq',  # TariffSent_fwd_{i,q} (forward-looking subset)
-    'eps_surprise': 'Surprise_EPS_iq'  # Surprise_EPS_{i,q} (primary)
-})
-
-# Add book-to-market (bm), momentum_12_2, volatility (ivol) placeholders
-# Note: These would require additional data; using proxies or placeholders
-tariff_df_output['bm'] = np.nan  # Would need book value data
-tariff_df_output['momentum_12_2'] = tariff_df_output.get('momentum', np.nan)  # Using our momentum as proxy
-tariff_df_output['ivol'] = tariff_df_output.get('size', np.nan)  # Using volatility proxy we calculated
-
-# Ensure qa_share column exists (share of Q&A discussion - would need transcript parsing)
-tariff_df_output['qa_share'] = np.nan  # Placeholder - would need full transcript Q&A parsing
-
-# Reorder columns to match requirement 9 specification order
-output_columns_order = [
-    # Identifiers and time
-    'ticker',
-    'fqtr',
-    'quarter',
-    'ann_time_iq',
-    'call_time_iq',
-    
-    # Dependent variable
-    'CAR',
-    
-    # Primary variables
-    'Surprise_EPS_iq',
-    'TariffSent_mean_call_iq',
-    'TariffMentions_iq',
-    'TariffSent_fwd_iq',
-    
-    # Control variables
-    'size',
-    'bm',
-    'momentum_12_2',
-    'ivol',
-    'after_hours',
-    'qa_share',
-    
-    # Additional info
-    'sector',
-    'eps_actual',
-    'TariffSent_shareNeg',
-    'tariff_sentences'
-]
-
-# Select only existing columns
-output_columns = [col for col in output_columns_order if col in tariff_df_output.columns]
-tariff_df_output = tariff_df_output[output_columns]
-
-print(f"✓ Variables renamed to match requirement 9 specification")
-print(f"✓ Output contains {len(output_columns)} variables")
-print(f"\nKey variables:")
-print(f"  - ann_time_iq: timestamp of press release")
-print(f"  - call_time_iq: call start timestamp")
-print(f"  - CAR_[window]_iq: from market/FF model")
-print(f"  - Surprise_EPS_iq: (primary)")
-print(f"  - TariffSent_mean_call_iq: tariff sentiment from call")
-print(f"  - TariffMentions_iq: count of tariff mentions")
-print(f"  - TariffSent_fwd_iq: forward-looking subset")
-print(f"  - Controls: size, bm, momentum_12_2, ivol, after_hours, qa_share")
-
-# Save results with timestamp
 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-output_file = OUTPUT_DIR / f'{timestamp}_results.csv'
-tariff_df_output.to_csv(output_file, index=False)
-print(f"\n✓ Results saved to '{output_file}'")
-print("="*80)
 
-# ============================================================================
-# REQUIREMENT 12: Generate Summary Report
-# ============================================================================
-print("\n" + "="*80)
-print("REQUIREMENT 12: WHAT TO REPORT - GENERATING SUMMARY REPORT")
-print("="*80)
+# Save main dataframe as pickle (for Regressions.py)
+intermediate_file = OUTPUT_DIR / f'{timestamp}_tariff_data.pkl'
+tariff_df.to_pickle(intermediate_file)
+print(f"✓ Saved tariff_df to: {intermediate_file.name}")
 
-report_file = OUTPUT_DIR / f'{timestamp}_summary_report.txt'
-with open(report_file, 'w', encoding='utf-8') as f:
-    f.write("="*80 + "\n")
-    f.write("TARIFF SENTIMENT ANALYSIS - SUMMARY REPORT\n")
-    f.write("="*80 + "\n\n")
-    
-    # 1. Descriptives: tariff mention rates & sentiment by quarter/sector and by report vs call
-    f.write("1. DESCRIPTIVE STATISTICS\n")
-    f.write("-" * 80 + "\n\n")
-    f.write("Tariff Mention Rates & Sentiment by Quarter:\n")
-    quarter_stats = tariff_df_output.groupby('quarter').agg({
-        'TariffMentions_iq': ['count', 'mean', 'sum'],
-        'TariffSent_mean_call_iq': ['mean', 'std']
-    }).round(4)
-    f.write(quarter_stats.to_string() + "\n\n")
-    
-    f.write("Tariff Mention Rates & Sentiment by Sector:\n")
-    sector_stats = tariff_df_output.groupby('sector').agg({
-        'TariffMentions_iq': ['count', 'mean', 'sum'],
-        'TariffSent_mean_call_iq': ['mean', 'std']
-    }).round(4)
-    f.write(sector_stats.to_string() + "\n\n")
-    
-    # 2. Main table reference
-    f.write("\n2. MAIN REGRESSION TABLE\n")
-    f.write("-" * 80 + "\n")
-    f.write(f"See: {timestamp}_regression_results.txt\n")
-    f.write(f"See: {timestamp}_regression_coefs.csv\n")
-    f.write("Main specification: CAR on TariffSent + Surprise with FE and clustered SEs\n\n")
-    
-    # 3. Robustness suite note
-    f.write("\n3. ROBUSTNESS SUITE\n")
-    f.write("-" * 80 + "\n")
-    f.write("Multiple specifications provided:\n")
-    f.write("  - Model 1: OLS + HC3 (baseline)\n")
-    f.write("  - Model 2: OLS + Sector & Quarter FE + Firm-clustered SEs\n")
-    f.write("  - Model 3: PanelOLS + Entity & Time FE + Two-way clustered SEs\n")
-    f.write("\nFuture robustness checks could include:\n")
-    f.write("  - Exposure interaction (firm tariff exposure × tariff tone)\n")
-    f.write("  - Alternative windows and tariff tone definitions\n")
-    f.write("  - Placebo topics (non-tariff sentiment)\n\n")
-    
-    # 4. Interpretable snippets
-    f.write("\n4. INTERPRETABLE SNIPPETS\n")
-    f.write("-" * 80 + "\n")
-    f.write("Top positive tariff sentiment examples:\n")
-    top_pos = tariff_df_output.nlargest(5, 'TariffSent_mean_call_iq')[['ticker', 'quarter', 'TariffSent_mean_call_iq', 'tariff_sentences']]
-    for idx, row in top_pos.iterrows():
-        f.write(f"\n{row['ticker']} ({row['quarter']}): Sentiment = {row['TariffSent_mean_call_iq']:.3f}\n")
-        if isinstance(row['tariff_sentences'], list) and len(row['tariff_sentences']) > 0:
-            f.write(f"  Example: \"{row['tariff_sentences'][0][:200]}...\"\n")
-    
-    f.write("\n\nTop negative tariff sentiment examples:\n")
-    top_neg = tariff_df_output.nsmallest(5, 'TariffSent_mean_call_iq')[['ticker', 'quarter', 'TariffSent_mean_call_iq', 'tariff_sentences']]
-    for idx, row in top_neg.iterrows():
-        f.write(f"\n{row['ticker']} ({row['quarter']}): Sentiment = {row['TariffSent_mean_call_iq']:.3f}\n")
-        if isinstance(row['tariff_sentences'], list) and len(row['tariff_sentences']) > 0:
-            f.write(f"  Example: \"{row['tariff_sentences'][0][:200]}...\"\n")
-    
-    f.write("\n\n" + "="*80 + "\n")
-    f.write("END OF SUMMARY REPORT\n")
-    f.write("="*80 + "\n")
+# Save main dataframe as CSV (for inspection)
+csv_file = OUTPUT_DIR / f'{timestamp}_tariff_data.csv'
+tariff_df.to_csv(csv_file, index=False)
+print(f"✓ Saved tariff_df to: {csv_file.name}")
 
-print(f"✓ Summary report saved to '{report_file}'")
-print("\nReport includes:")
-print("  1. Descriptives: tariff mention rates & sentiment by quarter/sector")
-print("  2. Main table reference: CAR on TariffSent + Surprise with FE and clustered SEs")
-print("  3. Robustness suite documentation")
-print("  4. Interpretable snippets: top positive/negative tariff sentences")
-print("="*80)
+# Save transcripts_df
+transcripts_file = OUTPUT_DIR / f'{timestamp}_transcripts_data.pkl'
+transcripts_df.to_pickle(transcripts_file)
+print(f"✓ Saved transcripts_df to: {transcripts_file.name}")
 
-# ============================================================================
-# Generate Visualizations
-# ============================================================================
-print("\n" + "="*80)
-print("REQUIREMENT 8: PORTRAYAL DELIVERABLES")
-print("="*80)
-print("\nTo generate plots, run:")
-print("  python src/Generate_Plots.py")
-print("\nThis will create 4 high-resolution plots in output/plots/:")
-print("  1. Time-series of tariff sentiment by quarter")
-print("  2. Sector heatmap of tariff sentiment")
-print("  3. Word shifts (negative vs positive events)")
-print("  4. Sentiment distribution and patterns")
-print("="*80)
+# Save prices and factors data
+prices_file = OUTPUT_DIR / f'{timestamp}_prices_data.pkl'
+prices.to_pickle(prices_file)
+print(f"✓ Saved prices data to: {prices_file.name}")
+
+factors_file = OUTPUT_DIR / f'{timestamp}_factors_data.pkl'
+factors.to_pickle(factors_file)
+print(f"✓ Saved factors data to: {factors_file.name}")
 
 print("\n" + "="*80)
-print("ANALYSIS COMPLETE!")
+print("✅ DATA PROCESSING COMPLETE!")
 print("="*80)
-
+print(f"\nAll processed data saved to output/ folder:")
+print(f"  - {intermediate_file.name}  (main data)")
+print(f"  - {csv_file.name}  (for inspection)")
+print(f"  - {transcripts_file.name}  (transcripts)")
+print(f"  - {prices_file.name}  (prices)")
+print(f"  - {factors_file.name}  (factors)")
+print(f"\nNext steps:")
+print(f"  1. Run plots: python src/Generate_Plots.py")
+print(f"  2. Run regressions: python src/Regressions.py")
+print("="*80)

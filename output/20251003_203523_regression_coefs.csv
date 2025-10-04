@@ -1,0 +1,37 @@
+model,term,coef,se
+Model 1: OLS + HC3 (no FE),const,-0.002786257104754378,0.0040228972059427595
+Model 1: OLS + HC3 (no FE),TariffSent_mean,-0.00033302689813294046,0.0031499926774371753
+Model 1: OLS + HC3 (no FE),eps_surprise,0.0064857220049224975,0.028132467775921953
+Model 1: OLS + HC3 (no FE),TariffMentions,2.474983245644982e-06,0.00018618274860629768
+Model 1: OLS + HC3 (no FE),size,-0.0900156551569965,0.23995048268248576
+Model 1: OLS + HC3 (no FE),momentum,0.05563988939183316,0.00853003350251648
+Model 1: OLS + HC3 (no FE),after_hours,-0.003123204060596672,0.0034926836732950516
+Model 2: OLS + Sector & Quarter FE + Firm-clustered SEs,const,-0.012847136653630298,0.006712813884390808
+Model 2: OLS + Sector & Quarter FE + Firm-clustered SEs,TariffSent_mean,-0.0013644055887207002,0.0032346358919462066
+Model 2: OLS + Sector & Quarter FE + Firm-clustered SEs,eps_surprise,0.004921741695981747,0.021207609402144327
+Model 2: OLS + Sector & Quarter FE + Firm-clustered SEs,TariffMentions,-0.00010139700247789973,0.00020002057451029505
+Model 2: OLS + Sector & Quarter FE + Firm-clustered SEs,size,-0.1737458308069033,0.2858525426189962
+Model 2: OLS + Sector & Quarter FE + Firm-clustered SEs,momentum,0.06017525038402374,0.007599886243245961
+Model 2: OLS + Sector & Quarter FE + Firm-clustered SEs,after_hours,-0.004654071161897314,0.0035832943999723195
+Model 2: OLS + Sector & Quarter FE + Firm-clustered SEs,sector_Communication Services,0.014388003397249853,0.007288776121856605
+Model 2: OLS + Sector & Quarter FE + Firm-clustered SEs,sector_Consumer Cyclical,0.005444574120240653,0.005416456813798782
+Model 2: OLS + Sector & Quarter FE + Firm-clustered SEs,sector_Consumer Defensive,0.00026159847060746883,0.006102871203343903
+Model 2: OLS + Sector & Quarter FE + Firm-clustered SEs,sector_Energy,0.0003728170871878183,0.005849688523318242
+Model 2: OLS + Sector & Quarter FE + Firm-clustered SEs,sector_Financial Services,-0.0028403221146633168,0.004521906074012535
+Model 2: OLS + Sector & Quarter FE + Firm-clustered SEs,sector_Healthcare,0.005625625539088014,0.005234339253114187
+Model 2: OLS + Sector & Quarter FE + Firm-clustered SEs,sector_Industrials,0.0016544909138664085,0.0051542270685232296
+Model 2: OLS + Sector & Quarter FE + Firm-clustered SEs,sector_Real Estate,0.004977521726342577,0.005028481595865987
+Model 2: OLS + Sector & Quarter FE + Firm-clustered SEs,sector_Technology,-0.00013369485658432318,0.005425208596960194
+Model 2: OLS + Sector & Quarter FE + Firm-clustered SEs,sector_Utilities,0.002570884884554238,0.004589642031564646
+Model 2: OLS + Sector & Quarter FE + Firm-clustered SEs,quarter_2024_Q2,0.014100942291876396,0.004473476350191826
+Model 2: OLS + Sector & Quarter FE + Firm-clustered SEs,quarter_2024_Q3,0.009261020876581896,0.004419973822019505
+Model 2: OLS + Sector & Quarter FE + Firm-clustered SEs,quarter_2024_Q4,0.009567859953885064,0.0041735900233004775
+Model 2: OLS + Sector & Quarter FE + Firm-clustered SEs,quarter_2025_Q1,0.014415740361335024,0.005011477289374788
+Model 2: OLS + Sector & Quarter FE + Firm-clustered SEs,quarter_2025_Q2,0.011815641177529193,0.004653340556301663
+Model 2: OLS + Sector & Quarter FE + Firm-clustered SEs,quarter_2025_Q3,0.021331215006814154,0.009833736063522907
+Model 3: PanelOLS + Entity & Time FE + Two-way clustered SEs,TariffSent_mean,-0.003991321216222401,0.0022108647064101104
+Model 3: PanelOLS + Entity & Time FE + Two-way clustered SEs,eps_surprise,-1.1886209475378997,0.3650593132884977
+Model 3: PanelOLS + Entity & Time FE + Two-way clustered SEs,TariffMentions,-0.00012083612276058411,0.00016730847421424886
+Model 3: PanelOLS + Entity & Time FE + Two-way clustered SEs,size,-0.028322410480530504,0.498292550023266
+Model 3: PanelOLS + Entity & Time FE + Two-way clustered SEs,momentum,0.04987658960409148,0.007322240758825216
+Model 3: PanelOLS + Entity & Time FE + Two-way clustered SEs,after_hours,-0.009931998155100088,0.006641418893431868

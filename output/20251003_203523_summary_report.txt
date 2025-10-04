@@ -1,0 +1,108 @@
+================================================================================
+TARIFF SENTIMENT ANALYSIS - SUMMARY REPORT
+Generated: 2025-10-03 20:35:23
+================================================================================
+
+1. DATASET OVERVIEW
+--------------------------------------------------------------------------------
+Total observations: 3047
+Date range: 2023-05-17 00:00:00 to 2025-09-19 00:00:00
+Unique companies: 496
+Unique quarters: 7
+Unique sectors: 12
+
+2. DESCRIPTIVE STATISTICS (after winsorization)
+--------------------------------------------------------------------------------
+            CAR_iq  TariffSent_mean_call_iq  Surprise_iq  TariffMentions_iq      Size_iq  Momentum_iq
+count  2883.000000              3047.000000  3039.000000        3047.000000  3040.000000  3040.000000
+mean     -0.000089                 0.158383    -0.018830           5.596567     0.018407     0.086524
+std       0.065774                 0.399368     0.034476           6.947663     0.007830     0.202371
+min      -0.202989                -0.920735    -0.207578           0.000000     0.008355    -0.363747
+25%      -0.038151                -0.025989    -0.024275           2.000000     0.012924    -0.045674
+50%      -0.001010                 0.147651    -0.009295           3.000000     0.016346     0.075655
+75%       0.038336                 0.440700    -0.002577           6.000000     0.021679     0.200241
+max       0.185732                 0.891256     0.041391          38.540000     0.049054     0.734946
+
+3. SAMPLE DATA (first 10 rows)
+--------------------------------------------------------------------------------
+Ticker_i Quarter_q    CAR_iq  TariffSent_mean_call_iq  TariffMentions_iq
+    NVDA   2025_Q3 -0.024092                 0.793053                2.0
+    NVDA   2025_Q2 -0.076976                 0.000000                0.0
+    NVDA   2025_Q1  0.108008                 0.000000                0.0
+    NVDA   2024_Q4  0.095495                -0.028927                3.0
+    NVDA   2024_Q3 -0.043064                 0.313961                2.0
+    NVDA   2024_Q2 -0.021648                -0.104700                2.0
+    NVDA   2024_Q1  0.185732                -0.893990                1.0
+    MSFT   2025_Q3  0.073773                -0.011051                2.0
+    MSFT   2025_Q2 -0.073092                -0.016593                5.0
+    MSFT   2025_Q1 -0.035045                 0.405138                4.0
+
+4. REGRESSION RESULTS SUMMARY
+--------------------------------------------------------------------------------
+Three econometric specifications were estimated:
+
+Model 1: Baseline OLS with HC3 robust standard errors
+  - No fixed effects
+  - Heteroskedasticity-robust standard errors (HC3)
+
+Model 2: OLS with Sector & Quarter Fixed Effects (PREFERRED SPECIFICATION)
+  - Sector fixed effects (controls for industry-specific factors)
+  - Quarter fixed effects (controls for time-varying aggregate shocks)
+  - Firm-clustered standard errors (accounts for within-firm correlation)
+
+Model 3: PanelOLS with Two-Way Fixed Effects
+  - Entity (firm) fixed effects
+  - Time (quarter) fixed effects
+  - Two-way clustered standard errors (entity + time)
+
+Key Findings (Model 2):
+  • TariffSent_mean coefficient: -0.001364
+  • eps_surprise coefficient:     0.004922
+  • TariffMentions coefficient:   -0.000101
+  • R-squared:                    0.0434
+  • Observations:                 2882
+
+5. DATA QUALITY & ROBUSTNESS
+--------------------------------------------------------------------------------
+Outlier Treatment:
+  - Winsorization applied at 1st and 99th percentiles
+  - Variables treated: CAR, TariffSent_mean, eps_surprise, TariffMentions, size, momentum
+
+Missing Data:
+  - CAR: 5.38% missing
+  - TariffSent_mean: 0.00% missing
+  - eps_surprise: 0.26% missing
+
+Control Variables:
+  - Size: Log market capitalization
+  - Momentum: Prior 6-month returns
+  - AfterHours: Indicator for announcements outside trading hours
+  - Sector: GICS industry classification
+  - Quarter: Fiscal quarter fixed effects
+
+6. INTERPRETATION
+--------------------------------------------------------------------------------
+This analysis examines the relationship between tariff-related sentiment in
+earnings calls and stock returns. The dependent variable is the 2-day cumulative
+abnormal return (CAR) around the earnings announcement.
+
+Key Variables:
+  - TariffSent_mean_call_iq: Average FinBERT sentiment of tariff-related sentences
+  - TariffMentions_iq: Number of tariff mentions in the call
+  - Surprise_iq: Earnings surprise (actual - consensus) / price
+
+Expected Relationships:
+  - Positive sentiment → Positive CAR (β₁ > 0)
+  - Positive surprise → Positive CAR (β₂ > 0)
+  - More mentions → Greater market attention (β₃ effect ambiguous)
+
+7. OUTPUT FILES GENERATED
+--------------------------------------------------------------------------------
+  - 20251003_203523_results.csv (final data with renamed variables)
+  - 20251003_203523_regression_results.txt (regression output)
+  - 20251003_203523_regression_coefs.csv (coefficient table)
+  - 20251003_203523_summary_report.txt (this report)
+
+================================================================================
+END OF REPORT
+================================================================================
