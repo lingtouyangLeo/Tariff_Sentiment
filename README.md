@@ -127,7 +127,6 @@ Tariff_Sentiment/
 │
 ├── .gitignore                        # Git ignore rules (excludes *.pkl, output files)
 ├── requirements.txt                  # Python dependencies
-├── HOW_TO_RUN.md                    # Detailed usage guide
 ├── README.md                         # This file
 ├── LICENSE                           # MIT License
 └── NLP_Project_1_Tariff_Sentiment_Analysis.pdf  # Project requirements
@@ -423,7 +422,7 @@ python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
 python -c "import torch; print(f'GPU name: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else "None"}')"
 ```
 
-**Solution 1**: Make sure you're using the `nlp` environment (not `base`)
+**Solution 1**: Make sure you're using the environment with the CUDA support
 
 ```bash
 conda activate nlp  # nlp environment has CUDA support
@@ -435,16 +434,6 @@ python src/Tariff_Sentiment.py
 - GPU: ~54 minutes for FinBERT
 - CPU: ~71 minutes for FinBERT
 
-### Issue: PanelOLS error in Model 3
-
-**Error message:**
-```
-ValueError: The index on the time dimension must be either numeric or date-like
-```
-
-**Solution**: This has been fixed in the latest version of `Regressions.py`. The quarter variable is automatically converted to numeric format (e.g., "2024_Q1" → 20241).
-
-If you still see this error, make sure you're using the latest code.
 
 ### Issue: Memory error during processing
 
@@ -520,8 +509,6 @@ Install all at once:
 ```bash
 pip install -r requirements.txt
 ```
-
----
 
 ---
 
